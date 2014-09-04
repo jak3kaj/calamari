@@ -56,6 +56,7 @@ class OsdMap(VersionedSyncObject):
             self.osds_by_id = dict([(o['osd'], o) for o in data['osds']])
             self.pools_by_id = dict([(p['pool'], p) for p in data['pools']])
             self.osd_tree_node_by_id = dict([(o['id'], o) for o in data['tree']['nodes'] if o['id'] >= 0])
+            self.crush_node_by_id = dict([(o['id'], o) for o in data['crush']['buckets']])
 
             # Special case Yuck
             flags = data.get('flags', '').replace('pauserd,pausewr', 'pause')
@@ -229,6 +230,7 @@ POOL = 'pool'
 OSD_MAP = 'osd_map'
 CRUSH_MAP = 'crush_map'
 CRUSH_RULE = 'crush_rule'
+CRUSH_NODE = 'crush_node'
 CLUSTER = 'cluster'
 SERVER = 'server'
 

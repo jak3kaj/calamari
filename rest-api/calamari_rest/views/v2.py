@@ -11,7 +11,7 @@ from rest_framework import status
 from django.contrib.auth.decorators import login_required
 
 from calamari_rest.parsers.v2 import CrushMapParser
-from calamari_rest.serializers.v2 import PoolSerializer, CrushRuleSetSerializer, CrushRuleSerializer, \
+from calamari_rest.serializers.v2 import PoolSerializer, CrushRuleSetSerializer, CrushRuleSerializer, CrushNodeSerializer,\
     ServerSerializer, SimpleServerSerializer, SaltKeySerializer, RequestSerializer, \
     ClusterSerializer, EventSerializer, LogTailSerializer, OsdSerializer, ConfigSettingSerializer, MonSerializer, OsdConfigSerializer, \
     CliSerializer
@@ -21,7 +21,7 @@ from calamari_rest.views.paginated_mixin import PaginatedMixin
 from calamari_rest.views.remote_view_set import RemoteViewSet
 from calamari_rest.views.rpc_view import RPCViewSet, DataObject
 from calamari_common.config import CalamariConfig
-from calamari_common.types import CRUSH_MAP, CRUSH_RULE, POOL, OSD, USER_REQUEST_COMPLETE, USER_REQUEST_SUBMITTED, \
+from calamari_common.types import CRUSH_MAP, CRUSH_RULE, CRUSH_NODE, POOL, OSD, USER_REQUEST_COMPLETE, USER_REQUEST_SUBMITTED, \
     OSD_IMPLEMENTED_COMMANDS, MON, OSD_MAP, SYNC_OBJECT_TYPES, ServiceId
 from calamari_common.db.event import Event, severity_from_str, SEVERITIES
 
@@ -101,6 +101,71 @@ Allows retrieval and replacement of a crushmap as a whole
 
     def replace(self, request, fsid):
         return Response(self.client.update(fsid, CRUSH_MAP, None, request.DATA))
+
+
+class CrushNodeViewSet(RPCViewSet):
+    """
+The CRUSH algorithm distributes data objects among storage devices according to a per-device weight value, approximating a uniform probability distribution. CRUSH distributes objects and their replicas according to the hierarchical cluster map you define. Your CRUSH map represents the available storage devices and the logical elements that contain them.
+    """
+
+    serializer_class = CrushNodeSerializer
+
+    def create(self, request, fsid):
+        serializer = self.serializer_class(data=request.DATA)
+        if serializer.is_valid(request.method):
+            response = self._validate_semantics(fsid, None, serializer.get_data())
+            if response is not None:
+                return response
+
+            create_response = self.client.create(fsid, CRUSH_NODE, serializer.get_data())
+
+            # TODO: handle case where the creation is rejected for some reason (should
+            # be passed an errors dict for a clean failure, or a zerorpc exception
+            # for a dirty failure)
+            assert 'request_id' in create_response
+            return Response(create_response, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def list(self, request, fsid):
+        crush_nodes = self.client.get_sync_object(fsid, 'osd_map')['crush']['buckets']
+        return Response(self.serializer_class(crush_nodes).data)
+
+    def retrieve(self, request, fsid, node_id):
+        crush_node = self.client.get_sync_object(fsid, 'osd_map', ['crush_node_by_id', int(node_id)])
+        return Response(self.serializer_class(DataObject(crush_node)).data)
+
+    def destroy(self, request, fsid, node_id):
+        # TODO do we need to heal the Tree?
+        delete_response = self.client.delete(fsid, CRUSH_NODE, int(node_id), status=status.HTTP_202_ACCEPTED)
+        return Response(delete_response, status=status.HTTP_202_ACCEPTED)
+
+    def update(self, request, fsid, node_id):
+        serializer = self.serializer_class(data=request.DATA)
+        # Get the node in question, it is not an update if it didn't exist before
+        self.client.get_sync_object(fsid, 'osd_map', ['crush_node_by_id', int(node_id)])
+
+        # TODO do we need to figure out more semantic meaning of the update or just pass it blindly down?
+        if serializer.is_valid(request.method):
+            return self._return_request(self.client.update(fsid, CRUSH_NODE, int(node_id), serializer.get_data()))
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def _validate_semantics(self, fsid, _, data):
+        errors = defaultdict(list)
+        self._check_field_unique(fsid, 'name', data, errors)
+        self._check_field_unique(fsid, 'id', data, errors)
+
+        if errors.items():
+            if 'name' in errors:
+                return Response(errors, status=status.HTTP_409_CONFLICT)
+            else:
+                return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def _check_field_unique(self, fsid, field, data, errors):
+        list_results = [x.get(field) for x in self.client.list(fsid, CRUSH_NODE, {})]
+        if field in data and data[field] in list_results:
+            errors['name'].append('Crush Node with name {field} already exists'.format(field=data[field]))
 
 
 class CrushRuleViewSet(RPCViewSet):
