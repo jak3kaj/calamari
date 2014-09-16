@@ -187,16 +187,17 @@ class NodeItemSerializer(serializers.Serializer):
 
 class CrushNodeSerializer(ValidatingSerializer):
     class Meta:
-        fields = ('bucket-type', 'bucket-name', 'id', 'weight', 'alg', 'hash', 'items')
-        create_allowed = ('bucket-type', 'bucket-name', 'weight', 'alg', 'hash', 'items', 'id')
+        fields = ('bucket-type', 'name', 'id', 'weight', 'alg', 'hash', 'items')
+        create_allowed = ('bucket-type', 'name', 'items', 'id')
         create_required = ()
-        modify_allowed = ('bucket-type', 'bucket-name', 'weight', 'alg', 'hash', 'items')
+        modify_allowed = ('items',)
         modify_required = ()
 
+    # TODO need to validate that this is a valid type ? use choice field?
     bucket_type = serializers.CharField(help_text="Buckets facilitate a hierarchy of nodes and leaves. Node (or non-leaf) buckets typically represent physical locations in a hierarchy. e.g. host, rack, datacenter",
                                         source="type_name",
                                         )
-    bucket_name = serializers.CharField(help_text="unique name", source='name')
+    name = serializers.CharField(label='bucket-name', help_text="unique name")
     id = serializers.IntegerField(required=False, help_text="unique ID expressed as a negative integer (optional)")
     weight = serializers.FloatField(required=False, help_text="the relative capacity/capability of the item(s)")
     alg = serializers.ChoiceField(required=False, help_text="bucket algorithm", choices=list(enumerate(('straw', 'uniform', 'list', 'tree'))), default='straw')
@@ -207,7 +208,6 @@ class CrushNodeSerializer(ValidatingSerializer):
 
 CrushNodeSerializer.base_fields['hash'] = CrushNodeSerializer.base_fields['_hash']
 CrushNodeSerializer.base_fields['bucket-type'] = CrushNodeSerializer.base_fields['bucket_type']
-CrushNodeSerializer.base_fields['bucket-name'] = CrushNodeSerializer.base_fields['bucket_name']
 
 
 class CrushRuleSetSerializer(serializers.Serializer):

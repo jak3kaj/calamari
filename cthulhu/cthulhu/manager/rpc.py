@@ -201,6 +201,8 @@ class RpcInterface(object):
 
         if object_type == POOL:
             return cluster.request_create(POOL, attributes)
+        elif object_type == CRUSH_NODE:
+            return cluster.request_create(CRUSH_NODE, attributes)
         else:
             raise NotImplementedError(object_type)
 
@@ -209,6 +211,8 @@ class RpcInterface(object):
 
         if object_type == POOL:
             return cluster.request_delete(POOL, object_id)
+        elif object_type == CRUSH_NODE:
+            return cluster.request_delete(CRUSH_NODE, object_id)
         else:
             raise NotImplementedError(object_type)
 
@@ -222,6 +226,12 @@ class RpcInterface(object):
             return self._osd_resolve(cluster, object_id)
         elif object_type == POOL:
             return self._pool_resolve(cluster, object_id)
+        elif object_type == CRUSH_NODE:
+            try:
+                crush_node = cluster.get_sync_object(OsdMap).crush_node_by_id[object_id]
+            except KeyError:
+                raise NotFound(CRUSH_NODE, object_id)
+            return crush_node
         else:
             raise NotImplementedError(object_type)
 
@@ -251,6 +261,8 @@ class RpcInterface(object):
             return osd_map['pools']
         elif object_type == CRUSH_RULE:
             return osd_map['crush']['rules']
+        elif object_type == CRUSH_NODE:
+            return osd_map['crush']['buckets']
         else:
             raise NotImplementedError(object_type)
 

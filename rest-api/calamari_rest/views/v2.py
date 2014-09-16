@@ -113,10 +113,9 @@ The CRUSH algorithm distributes data objects among storage devices according to 
     def create(self, request, fsid):
         serializer = self.serializer_class(data=request.DATA)
         if serializer.is_valid(request.method):
-            response = self._validate_semantics(fsid, None, serializer.get_data())
-            if response is not None:
-                return response
 
+            # TODO semantic validation
+            # type exists, name and id are unique, items exist
             create_response = self.client.create(fsid, CRUSH_NODE, serializer.get_data())
 
             # TODO: handle case where the creation is rejected for some reason (should
@@ -128,12 +127,14 @@ The CRUSH algorithm distributes data objects among storage devices according to 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def list(self, request, fsid):
-        crush_nodes = self.client.get_sync_object(fsid, 'osd_map')['crush']['buckets']
+        crush_nodes = self.client.list(fsid, CRUSH_NODE, {})
         return Response(self.serializer_class(crush_nodes).data)
 
     def retrieve(self, request, fsid, node_id):
-        crush_node = self.client.get_sync_object(fsid, 'osd_map', ['crush_node_by_id', int(node_id)])
-        return Response(self.serializer_class(DataObject(crush_node)).data)
+        crush_node = self.client.get(fsid, CRUSH_NODE, int(node_id))
+        if crush_node:
+            return Response(self.serializer_class(DataObject(crush_node)).data)
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
     def destroy(self, request, fsid, node_id):
         # TODO do we need to heal the Tree?
@@ -142,30 +143,27 @@ The CRUSH algorithm distributes data objects among storage devices according to 
 
     def update(self, request, fsid, node_id):
         serializer = self.serializer_class(data=request.DATA)
-        # Get the node in question, it is not an update if it didn't exist before
-        self.client.get_sync_object(fsid, 'osd_map', ['crush_node_by_id', int(node_id)])
-
-        # TODO do we need to figure out more semantic meaning of the update or just pass it blindly down?
         if serializer.is_valid(request.method):
-            return self._return_request(self.client.update(fsid, CRUSH_NODE, int(node_id), serializer.get_data()))
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def _validate_semantics(self, fsid, _, data):
-        errors = defaultdict(list)
-        self._check_field_unique(fsid, 'name', data, errors)
-        self._check_field_unique(fsid, 'id', data, errors)
+            errors = defaultdict(list)
+            updates = serializer.get_data()
+            crush_node = self.client.get(fsid, CRUSH_NODE, int(node_id))
+            if not crush_node:
+                return Response(errors, status=status.HTTP_404_NOT_FOUND)
 
-        if errors.items():
-            if 'name' in errors:
-                return Response(errors, status=status.HTTP_409_CONFLICT)
-            else:
+            for child in updates['items']:
+                child_node = self.client.get(fsid, CRUSH_NODE, int(child['id']))
+                if not child_node:
+                    errors['items'].append('Crush node {id} does not exist'.format(id=child['id']))
+            if errors:
                 return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def _check_field_unique(self, fsid, field, data, errors):
-        list_results = [x.get(field) for x in self.client.list(fsid, CRUSH_NODE, {})]
-        if field in data and data[field] in list_results:
-            errors['name'].append('Crush Node with name {field} already exists'.format(field=data[field]))
+            response = self.client.create(fsid, CRUSH_NODE, updates)
+
+            assert 'request_id' in response
+            return Response(response, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CrushRuleViewSet(RPCViewSet):
