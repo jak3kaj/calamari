@@ -190,7 +190,7 @@ class CrushNodeSerializer(ValidatingSerializer):
         fields = ('bucket-type', 'name', 'id', 'weight', 'alg', 'hash', 'items')
         create_allowed = ('bucket-type', 'name', 'items', 'id')
         create_required = ()
-        modify_allowed = ('items',)
+        modify_allowed = ('bucket-type', 'name', 'items')
         modify_required = ()
 
     # TODO need to validate that this is a valid type ? use choice field?
@@ -200,7 +200,10 @@ class CrushNodeSerializer(ValidatingSerializer):
     name = serializers.CharField(label='bucket-name', help_text="unique name")
     id = serializers.IntegerField(required=False, help_text="unique ID expressed as a negative integer (optional)")
     weight = serializers.FloatField(required=False, help_text="the relative capacity/capability of the item(s)")
-    alg = serializers.ChoiceField(required=False, help_text="bucket algorithm", choices=list(enumerate(('straw', 'uniform', 'list', 'tree'))), default='straw')
+    alg = serializers.ChoiceField(required=False,
+                                  help_text="bucket algorithm",
+                                  choices=list(enumerate(('straw', 'uniform', 'list', 'tree'))),
+                                  default=0)
     _hash = serializers.IntegerField(required=False, help_text="hash algorithm", default=0)
     items = NodeItemSerializer(required=False, many=True)
     # help_text="A bucket may have one or more items. The items may consist of node buckets or leaves. Items may have a weight that reflects the relative weight of the item.")

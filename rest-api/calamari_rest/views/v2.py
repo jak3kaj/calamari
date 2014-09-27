@@ -117,7 +117,6 @@ The CRUSH algorithm distributes data objects among storage devices according to 
             # TODO semantic validation
             # type exists, name and id are unique, items exist
             create_response = self.client.create(fsid, CRUSH_NODE, serializer.get_data())
-
             # TODO: handle case where the creation is rejected for some reason (should
             # be passed an errors dict for a clean failure, or a zerorpc exception
             # for a dirty failure)
@@ -147,6 +146,7 @@ The CRUSH algorithm distributes data objects among storage devices according to 
 
             errors = defaultdict(list)
             updates = serializer.get_data()
+            '''
             crush_node = self.client.get(fsid, CRUSH_NODE, int(node_id))
             if not crush_node:
                 return Response(errors, status=status.HTTP_404_NOT_FOUND)
@@ -155,10 +155,12 @@ The CRUSH algorithm distributes data objects among storage devices according to 
                 child_node = self.client.get(fsid, CRUSH_NODE, int(child['id']))
                 if not child_node:
                     errors['items'].append('Crush node {id} does not exist'.format(id=child['id']))
+            '''
+
             if errors:
                 return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
-            response = self.client.create(fsid, CRUSH_NODE, updates)
+            response = self.client.update(fsid, CRUSH_NODE, node_id, updates)
 
             assert 'request_id' in response
             return Response(response, status=status.HTTP_202_ACCEPTED)
