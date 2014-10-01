@@ -71,13 +71,13 @@ class TestCrushNodeFactory(TestCase):
                                                        [12345,
                                                         'I am a fake',
                                                         [('osd crush add-bucket', {'name': 'fake', 'type': 'host'}),
-                                                         ('osd crush reweight', {'name': 'osd.2', 'weight': 0}),
+                                                         ('osd crush reweight', {'name': 'osd.2', 'weight': 0.0}),
                                                          ('osd crush remove', {'name': 'osd.2'}),
-                                                         ('osd crush add', {'args': 'host=fake', 'id': 2, 'weight': 0}),
+                                                         ('osd crush add', {'args': ['host=fake'], 'id': 2, 'weight': 0.0}),
                                                          ('osd crush reweight', {'name': 'osd.2', 'weight': 22}),
-                                                         ('osd crush reweight', {'name': 'osd.3', 'weight': 0}),
+                                                         ('osd crush reweight', {'name': 'osd.3', 'weight': 0.0}),
                                                          ('osd crush remove', {'name': 'osd.3'}),
-                                                         ('osd crush add', {'args': 'host=fake', 'id': 3, 'weight': 0}),
+                                                         ('osd crush add', {'args': ['host=fake'], 'id': 3, 'weight': 0.0}),
                                                          ('osd crush reweight', {'name': 'osd.3', 'weight': 33})]])
 
     @patch('cthulhu.manager.user_request.LocalClient', fake_salt)

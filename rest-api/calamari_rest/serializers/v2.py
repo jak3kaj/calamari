@@ -178,7 +178,7 @@ class CrushRuleSerializer(serializers.Serializer):
 
 class NodeItemSerializer(serializers.Serializer):
     id = serializers.IntegerField()
-    weight = serializers.IntegerField()
+    weight = serializers.FloatField()
     pos = serializers.IntegerField()
 
     class Meta:
