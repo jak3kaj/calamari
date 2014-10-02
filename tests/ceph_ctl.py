@@ -262,7 +262,8 @@ class ExternalCephControl(CephControl):
         return not osd_down + osd_out
 
     def reset_all_osds(self, osd_stat):
-        for osd in [osd['osd'] for osd in osd_stat['osds'] if int(float(osd['weight'])) != 1]:
+        # this structure doesn't contain weight in dumpling = default 0
+        for osd in [osd['osd'] for osd in osd_stat['osds'] if int(float(osd.get('weight', 0))) != 1]:
             self._run_command(self._get_admin_node(), 'ceph osd reweight {osd_id} 1.0'.format(osd_id=osd))
 
         for flag in ['pause']:
