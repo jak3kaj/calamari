@@ -19,7 +19,7 @@ psycopg2==2.5.2
 manhole==0.6.0
 importlib==1.0.1
 
-Twisted==11.1.0
+#Twisted==11.1.0
 django-tagging==0.3.1
 pytz==2013.8
 
